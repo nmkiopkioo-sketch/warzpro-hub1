@@ -1,5 +1,5 @@
--- Language: Lua (Luau) | Pro Hub Ultimate + BIXMAX v4.0.0 (Fixed Sliders & Restored Loot ESP)
--- ปุ่ม PRO = เปิด/ปิด UI | เมนูภาษาไทยทั้งหมด + แก้บัคสไลเดอร์ยืดติดจอ
+-- Language: Lua (Luau) | Pro Hub Ultimate + BIXMAX v4.0.0 (Ultimate Fixed Edition)
+-- ปุ่ม PRO = เปิด/ปิด UI | ปุ่ม [🎯 เล็ง] (มือถือ) | เมนูภาษาไทย + สไลเดอร์ไม่ค้าง + ESP ครบ
 
 local Players           = game:GetService("Players")
 local RunService        = game:GetService("RunService")
@@ -9,9 +9,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Camera            = workspace.CurrentCamera
 local LocalPlayer       = Players.LocalPlayer
 
-print("[ProHub + BIXMAX] Initializing Fixed Slider & Loot ESP Edition, friend...")
+print("[ProHub + BIXMAX] Initializing Ultimate Fixed Edition, friend...")
 
--- โหลด Remotes ของ Pro Hub อย่างปลอดภัย[cite: 1, 2]
+-- โหลด Remotes ของ Pro Hub อย่างปลอดภัย
 local Remotes, PickupLootRemote, UseItemRemote, BagAllToStashRemote
 task.spawn(function()
     pcall(function()
@@ -59,7 +59,7 @@ local CFG = {
     ESPDistance = true,
     ESPHealth = true,
     ESPTracers = true,
-    ESPLoot = true, -- นำระบบมองของบนพื้นกลับมาแล้ว
+    ESPLoot = true,
     ESPMaxDist = 5000,
     ESPWallCheck = false,
     
@@ -84,7 +84,7 @@ local CFG = {
 }
 
 local MODE_CYCLE={"Hold","Toggle"}
-local MODE_LABELS={Hold="กดค้าง",Toggle="สลับเปิด/ปิด"}
+local MODE_LABELS={Hold="กดค้าง (Hold)",Toggle="สลับเปิด/ปิด (Toggle)"}
 local PART_CYCLE={"Head","UpperTorso","LowerTorso","HumanoidRootPart"}
 local PART_LABELS={Head="หัว (Head)",UpperTorso="ลำตัวบน",LowerTorso="สะโพก",HumanoidRootPart="แกนกลาง (Root)"}
 local PART_FALLBACK={
@@ -277,7 +277,6 @@ task.spawn(function()
             local root = char:FindFirstChild("HumanoidRootPart")
             local hum = char:FindFirstChildOfClass("Humanoid")
 
-            -- เก็บของออโต้จาก WarzLoot[cite: 2]
             if CFG.AutoLootEnabled and root and PickupLootRemote then
                 local lootFolder = workspace:FindFirstChild("WarzLoot")
                 if lootFolder then
@@ -289,7 +288,6 @@ task.spawn(function()
                 end
             end
 
-            -- ปั๊มยาออโต้[cite: 2]
             if CFG.AutoHealEnabled and hum and hum.Health > 0 and hum.Health < 75 and UseItemRemote then
                 local backpack = LocalPlayer:FindFirstChild("Backpack")
                 if backpack then
@@ -306,7 +304,6 @@ task.spawn(function()
                 end
             end
 
-            -- กระสุนนิ่ม (Soft Hitbox หัวโต)
             if CFG.BulletSoft then
                 for _, p in ipairs(Players:GetPlayers()) do
                     if p ~= LocalPlayer and isEnemy(p) then
@@ -354,15 +351,62 @@ RunService.Stepped:Connect(function()
 end)
 
 ----------------------------------------------------------------
--- AIMBOT LOGIC
+-- AIMBOT & MOBILE AIM BUTTON LOGIC
 ----------------------------------------------------------------
 local aimbotTarget = nil
 local aimbotTargetPlayer = nil
 local aimbotToggleActive = false
+local mobileAiming = false
+
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "ProHub_Ultimate_Fixed"
+MainGui.ResetOnSpawn = false
+pcall(function()
+    if gethui then MainGui.Parent = gethui() else MainGui.Parent = game:GetService("CoreGui") end
+end)
+if not MainGui.Parent then MainGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+-- ปุ่มเล็งสำหรับมือถือ ([🎯 เล็ง])
+local MobileAimBtn = Instance.new("TextButton")
+MobileAimBtn.Name = "MobileAimButton"
+MobileAimBtn.Size = UDim2.new(0, 65, 0, 65)
+MobileAimBtn.Position = UDim2.new(0.85, -40, 0.65, 0)
+MobileAimBtn.BackgroundColor3 = Color3.fromRGB(20, 30, 25)
+MobileAimBtn.Text = "🎯 เล็ง"
+MobileAimBtn.TextColor3 = T.ACCENT
+MobileAimBtn.Font = Enum.Font.GothamBold
+MobileAimBtn.TextSize = 14
+MobileAimBtn.Visible = UserInputService.TouchEnabled
+MobileAimBtn.Parent = MainGui
+Instance.new("UICorner", MobileAimBtn).CornerRadius = UDim.new(1, 0)
+local mStroke = Instance.new("UIStroke", MobileAimBtn)
+mStroke.Color = T.ACCENT
+mStroke.Thickness = 2
+
+MobileAimBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        mobileAiming = true
+        MobileAimBtn.BackgroundColor3 = T.ACCENT
+        MobileAimBtn.TextColor3 = Color3.new(0,0,0)
+    end
+end)
+
+MobileAimBtn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        mobileAiming = false
+        MobileAimBtn.BackgroundColor3 = Color3.fromRGB(20, 30, 25)
+        MobileAimBtn.TextColor3 = T.ACCENT
+    end
+end)
 
 local function isAimbotFiring()
     if not CFG.AimbotEnabled then return false end
-    if CFG.AimbotMode == "Toggle" then return aimbotToggleActive end
+    if UserInputService.TouchEnabled then
+        return mobileAiming
+    end
+    if CFG.AimbotMode == "Toggle" then
+        return aimbotToggleActive
+    end
     return UserInputService:IsKeyDown(CFG.AimbotKey)
 end
 
@@ -490,7 +534,7 @@ RunService.RenderStepped:Connect(function(dt)
         if not p.Parent then free(p) end
     end
 
-    -- 1. Loot ESP (มองเห็นของบนพื้น WarzLoot)
+    -- Loot ESP
     local lootFolder = workspace:FindFirstChild("WarzLoot")
     local activeLootItems = {}
     if CFG.ESPLoot and lootFolder then
@@ -548,17 +592,8 @@ RunService.RenderStepped:Connect(function(dt)
 end)
 
 ----------------------------------------------------------------
--- PRO HUB UI DESIGN (เมนูภาษาไทย + แก้บัคสไลเดอร์ค้าง)
+-- PRO HUB UI DESIGN (Fully Fixed Sliders & Complete Close Cleanup)
 ----------------------------------------------------------------
-local MainGui = Instance.new("ScreenGui")
-MainGui.Name = "ProHub_Ultimate_Thai"
-MainGui.ResetOnSpawn = false
-pcall(function()
-    if gethui then MainGui.Parent = gethui() else MainGui.Parent = game:GetService("CoreGui") end
-end)
-if not MainGui.Parent then MainGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-
--- ปุ่มเปิด/ปิด PRO ด้านข้าง
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Size = UDim2.new(0, 52, 0, 52)
 ToggleBtn.Position = UDim2.new(0, 20, 0.28, 0)
@@ -612,7 +647,7 @@ local TitleLbl = Instance.new("TextLabel")
 TitleLbl.Size = UDim2.new(0, 380, 1, 0)
 TitleLbl.Position = UDim2.new(0, 34, 0, 0)
 TitleLbl.BackgroundTransparency = 1
-TitleLbl.Text = "PRO HUB ULTIMATE • เวอร์ชั่นภาษาไทย (Fixed)"
+TitleLbl.Text = "PRO HUB ULTIMATE • เวอร์ชั่นสมบูรณ์ (Fixed)"
 TitleLbl.TextColor3 = T.TEXT
 TitleLbl.Font = Enum.Font.GothamBold
 TitleLbl.TextSize = 13
@@ -646,7 +681,16 @@ CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.TextSize = 11
 CloseBtn.Parent = TitleBar
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-CloseBtn.MouseButton1Click:Connect(function() MainGui:Destroy() end)
+
+-- ปุ่มปิดเมนู ลบ Drawing และ GUI ให้เกลี้ยงไม่มีค้าง
+CloseBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        for p, _ in pairs(pool) do free(p) end
+        for _, ui in pairs(lootEspPool) do pcall(function() ui:Remove() end) end
+        if fovCircle then pcall(function() fovCircle:Remove() end) end
+    end)
+    MainGui:Destroy()
+end)
 
 -- Sidebar Tabs Layout
 local Sidebar = Instance.new("Frame")
@@ -730,7 +774,7 @@ for i, def in ipairs(TABS) do
 end
 
 ----------------------------------------------------------------
--- UI BUILDERS (Fixed Slider Safe Calculation)
+-- UI BUILDERS (Robust Non-Freezing Sliders)
 ----------------------------------------------------------------
 local function makeSection(title, parent)
     local f = Instance.new("Frame"); f.Size = UDim2.new(1, 0, 0, 24); f.BackgroundTransparency = 1; f.Parent = parent
@@ -762,7 +806,7 @@ local function makeToggle(labelText, state, onChange, parent)
     end)
 end
 
--- แก้ไข Slider ไม่ให้ค้างและไม่ให้แถบสีเขียวยืดทะลุจอ
+-- แก้ไขระบบสไลเดอร์ให้ปลอดภัย ไม่ค้าง ไม่ยืดทะลุจอ และหลุดการเชื่อมต่อเมื่อปล่อยนิ้ว
 local function makeSlider(labelText, min, max, current, step, onChange, parent)
     step = step or 1
     local f = Instance.new("Frame"); f.Size = UDim2.new(1, 0, 0, 56); f.BackgroundColor3 = T.CARD2; f.Parent = parent
@@ -782,38 +826,41 @@ local function makeSlider(labelText, min, max, current, step, onChange, parent)
     local fill = Instance.new("Frame"); fill.Size = UDim2.new(initialFrac, 0, 1, 0); fill.BackgroundColor3 = T.ACCENT; fill.Parent = track
     Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
     
-    local dragging = false
-    local function upd(px)
-        local absPos = track.AbsolutePosition.X
-        local absSize = track.AbsoluteSize.X
-        if absSize <= 0 then return end
-        local rel = math.clamp((px - absPos) / absSize, 0, 1)
-        local v = math.floor((min + rel * (max - min)) / step + 0.5) * step
-        v = math.clamp(v, min, max)
-        local frac = math.clamp((v - min) / (max - min), 0, 1)
-        fill.Size = UDim2.new(frac, 0, 1, 0)
-        valLbl.Text = string.format(step<1 and "%.2f" or "%d", v)
-        onChange(v)
-    end
-    
     local hb = Instance.new("TextButton"); hb.Size = UDim2.new(1, 20, 1, 20); hb.Position = UDim2.new(0, -10, 0, -10); hb.BackgroundTransparency = 1; hb.Text = ""; hb.Parent = track
     
+    local connMove, connEnd
     hb.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            upd(input.Position.X)
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            upd(input.Position.X)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
+            if connMove then connMove:Disconnect() end
+            if connEnd then connEnd:Disconnect() end
+            
+            local function updateSlider(posx)
+                local absPos = track.AbsolutePosition.X
+                local absSize = track.AbsoluteSize.X
+                if absSize <= 0 then return end
+                local rel = math.clamp((posx - absPos) / absSize, 0, 1)
+                local v = math.floor((min + rel * (max - min)) / step + 0.5) * step
+                v = math.clamp(v, min, max)
+                local frac = math.clamp((v - min) / (max - min), 0, 1)
+                fill.Size = UDim2.new(frac, 0, 1, 0)
+                valLbl.Text = string.format(step<1 and "%.2f" or "%d", v)
+                onChange(v)
+            end
+            
+            updateSlider(input.Position.X)
+            
+            connMove = UserInputService.InputChanged:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+                    updateSlider(i.Position.X)
+                end
+            end)
+            
+            connEnd = UserInputService.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                    if connMove then connMove:Disconnect(); connMove = nil end
+                    if connEnd then connEnd:Disconnect(); connEnd = nil end
+                end
+            end)
         end
     end)
 end
@@ -825,7 +872,7 @@ local function makeCycle(labelText, options, labels, current, onChange, parent)
     lbl.BackgroundTransparency = 1; lbl.Text = labelText; lbl.TextColor3 = T.TEXT
     lbl.Font = Enum.Font.Gotham; lbl.TextSize = 11; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Parent = f
     local idx = 1; for i, v in ipairs(options) do if v==current then idx=i break end end
-    local valBtn = Instance.new("TextButton"); valBtn.Size = UDim2.new(0, 120, 0, 26); valBtn.Position = UDim2.new(1, -132, 0.5, -13)
+    local valBtn = Instance.new("TextButton"); valBtn.Size = UDim2.new(0, 140, 0, 26); valBtn.Position = UDim2.new(1, -152, 0.5, -13)
     valBtn.BackgroundColor3 = T.ACCENT; valBtn.BorderSizePixel = 0
     valBtn.Text = labels[options[idx]] or options[idx]; valBtn.TextColor3 = Color3.fromRGB(10,15,12)
     valBtn.Font = Enum.Font.GothamBold; valBtn.TextSize = 11; valBtn.Parent = f
@@ -899,4 +946,4 @@ end, pageExtra)
 makeSection("ความปลอดภัยและข้อมูล", pageSettings)
 makeToggle("ระบบป้องกันการเตะ/แบนเบื้องต้น", true, function(v) end, pageSettings)
 
-print("[ProHub Ultimate] Fixed Sliders & Restored Loot ESP Successfully!")
+print("[ProHub Ultimate] Ultimate Fixed Edition Loaded Successfully!")
